@@ -1,8 +1,9 @@
 # Ulm Azan → Echo Show
 
 A Python 3.9+ standard-library worker, SQLite state, AlAdhan prayer times, and
-Voice Monkey announcements. No Python dependencies or custom Alexa skill.
-Caddy serves the supplied recording over HTTPS; RustDesk is independent.
+Voice Monkey announcements. Automatic playback needs no Python dependencies or
+custom Alexa skill. An [optional English-US voice-query skill](alexa/README.md)
+adds next-prayer times and countdowns. Caddy serves HTTPS; RustDesk is independent.
 
 ## Safety and current timetable
 
@@ -44,7 +45,7 @@ See [audio notes](audio/ATTRIBUTION.md).
 ## Local checks (never send audio by default)
 
 ```sh
-python3 -m unittest -v
+python3 -m unittest -v test_azan
 python3 azan.py schedule --date 2026-11-18
 python3 azan.py test
 python3 azan.py test --audio
@@ -129,6 +130,24 @@ the service. Never put credentials/private keys in Git or command arguments.
 - Caddy, the worker and RustDesk are separate services. The worker restarts on
   failure; reboot restores the enabled service. Back up the SQLite database
   consistently (SQLite backup API) to preserve duplicate history.
+
+## Optional: ask Alexa for prayer times
+
+Say **“Alexa, ask my azan for the next prayer”** to hear the next prayer, local
+time, countdown, and remaining times today. **“Alexa, ask my azan for today's
+prayer times”** also lists the full day. After Isha it looks ahead to tomorrow.
+
+See [the skill setup guide](alexa/README.md) for Amazon Developer registration,
+model import and HTTPS endpoint configuration. It remains a private development
+skill on the Echo's Amazon account. The backend needs Python 3.10+ and
+`requirements-alexa.txt`; it runs as a separate read-only service and spends
+no Voice Monkey requests. Automatic Azan playback is unchanged.
+
+With the optional dependencies installed, run the full test suite:
+
+```sh
+.venv/bin/python -m unittest -v
+```
 
 ## Sources
 

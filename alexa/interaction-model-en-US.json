@@ -1,0 +1,45 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "my azan",
+      "intents": [
+        {
+          "name": "NextPrayerIntent",
+          "slots": [],
+          "samples": [
+            "what is the next prayer",
+            "what is the next prayer time",
+            "when is the next prayer",
+            "when the next prayer is",
+            "for the next prayer",
+            "for the next prayer time",
+            "how long until the next prayer",
+            "how much time is left until the next prayer",
+            "which prayer is next",
+            "for the upcoming prayer times",
+            "what prayers are left today",
+            "what are the remaining prayer times",
+            "for the remaining prayer times"
+          ]
+        },
+        {
+          "name": "TodaysPrayerTimesIntent",
+          "slots": [],
+          "samples": [
+            "what are today's prayer times",
+            "for today's prayer times",
+            "tell me all prayer times today",
+            "what time are the prayers today",
+            "for the full timetable"
+          ]
+        },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.FallbackIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] }
+      ],
+      "types": []
+    }
+  }
+}

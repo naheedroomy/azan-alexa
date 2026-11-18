@@ -5,6 +5,7 @@
 *.pem
 *.key
 credentials
+alexa.env
 
 # Runtime state
 /data/

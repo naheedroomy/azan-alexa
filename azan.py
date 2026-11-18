@@ -190,7 +190,7 @@ def make_schedule(config, day, response):
     return result
 
 
-def get_schedule(config, day, connection):
+def get_schedule(config, day, connection, *, cached_only=False):
     query = {key: config[key] for key in ("latitude", "longitude", "method", "school",
                                          "latitude_adjustment_method")}
     query.update(timezonestring=config["timezone"], iso8601="true")
@@ -201,8 +201,11 @@ def get_schedule(config, day, connection):
         try:
             return make_schedule(config, day, json.loads(row[0]))
         except (ValueError, KeyError, TypeError):
-            LOG.warning("Discarding invalid cached schedule for %s", day)
-            connection.execute("DELETE FROM cache WHERE day=? AND fingerprint=?", (day.isoformat(), fingerprint))
+            if not cached_only:
+                LOG.warning("Discarding invalid cached schedule for %s", day)
+                connection.execute("DELETE FROM cache WHERE day=? AND fingerprint=?", (day.isoformat(), fingerprint))
+    if cached_only:
+        raise RuntimeError("Prayer times are not available in the cache")
     url = "https://api.aladhan.com/v1/timings/" + day.strftime("%d-%m-%Y")
     response = request_json(url + "?" + urlencode(query))
     schedule = make_schedule(config, day, response)

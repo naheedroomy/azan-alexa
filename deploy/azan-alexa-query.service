@@ -1,0 +1,32 @@
+[Unit]
+Description=Read-only Alexa prayer-time query skill
+After=network-online.target azan-alexa.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=azan-alexa
+Group=azan-alexa
+WorkingDirectory=/opt/azan-alexa
+Environment=AZAN_CONFIG=/etc/azan-alexa/config.json
+Environment=AZAN_DATABASE=/var/lib/azan-alexa/azan.sqlite3
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=-/etc/azan-alexa/alexa.env
+ExecStart=/opt/azan-alexa/.venv/bin/gunicorn --bind 127.0.0.1:8008 --workers 2 --timeout 8 --no-control-socket --access-logfile - --error-logfile - alexa_skill:create_app()
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/var/lib/azan-alexa
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

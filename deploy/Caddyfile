@@ -1,5 +1,9 @@
 178-83-33-107.sslip.io {
     root * /srv/azan-audio
+    @skill path /alexa /alexa/health
+    handle @skill {
+        reverse_proxy 127.0.0.1:8008
+    }
     @recording path /azan.mp3
     handle @recording {
         header Cache-Control "public, max-age=86400"
