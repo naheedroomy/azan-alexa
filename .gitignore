@@ -1,0 +1,19 @@
+# Credentials and private keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials
+
+# Runtime state
+/data/
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+.ruff_cache/
+
+# User-supplied and converted audio; deploy explicitly, not through Git
+/azan.mp3
+/audio/*.mp3

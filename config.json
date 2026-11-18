@@ -1,0 +1,22 @@
+{
+  "latitude": 48.4011,
+  "longitude": 9.9876,
+  "timezone": "Europe/Berlin",
+  "method": 3,
+  "school": 0,
+  "latitude_adjustment_method": 3,
+  "audio_url": "https://178-83-33-107.sslip.io/azan.mp3",
+  "fajr_audio_url": "",
+  "offsets_minutes": {
+    "Fajr": 1,
+    "Sunrise": 0,
+    "Dhuhr": 5,
+    "Asr": 4,
+    "Maghrib": -1,
+    "Isha": -20
+  },
+  "overrides": {},
+  "timetable_confirmed": true,
+  "max_late_seconds": 90,
+  "poll_seconds": 5
+}
