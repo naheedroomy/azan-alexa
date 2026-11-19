@@ -133,8 +133,8 @@ the service. Never put credentials/private keys in Git or command arguments.
 
 ## Optional: ask Alexa for prayer times
 
-Say **“Alexa, ask my azan for the next prayer”** to hear the next prayer, local
-time, countdown, and remaining times today. **“Alexa, ask my azan for today's
+Say **“Alexa, open Prayer Times”** to hear the next prayer, local time,
+countdown, and remaining times today. **“Alexa, ask Prayer Times for today's
 prayer times”** also lists the full day. After Isha it looks ahead to tomorrow.
 
 See [the skill setup guide](alexa/README.md) for Amazon Developer registration,

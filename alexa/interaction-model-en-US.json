@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "my azan",
+      "invocationName": "prayer times",
       "intents": [
         {
           "name": "NextPrayerIntent",

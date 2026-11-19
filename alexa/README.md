@@ -8,13 +8,13 @@ Echo**, with the Echo set to **English (United States)**.
 
 ## What to say
 
-- “Alexa, ask my azan for the next prayer.”
-- “Alexa, ask my azan how long until the next prayer.”
-- “Alexa, ask my azan for the remaining prayer times.”
-- “Alexa, ask my azan for today's prayer times.”
-- “Alexa, open my azan.”
+- “Alexa, open Prayer Times.”
+- “Alexa, ask Prayer Times for the next prayer.”
+- “Alexa, ask Prayer Times how long until the next prayer.”
+- “Alexa, ask Prayer Times for the remaining prayer times.”
+- “Alexa, ask Prayer Times for today's prayer times.”
 
-The first three and opening the skill report the next prayer, local start time,
+The first four report the next prayer, local start time,
 countdown, and later prayers today. The full-day query also lists past times.
 For example, at 13:00 on 2026-11-18 in Ulm:
 
@@ -25,7 +25,7 @@ After Isha it reports tomorrow's Fajr. Countdown uses elapsed UTC time, includin
 DST transitions; displayed times use Europe/Berlin. It also handles a prayer
 day's Isha occurring after midnight. A Simple Card accompanies the spoken reply.
 The phrase “Alexa, what is the next prayer?” alone is not guaranteed to invoke
-this skill: include **ask my azan**.
+this skill: include **ask Prayer Times**.
 
 ## 1. Create the development skill
 
@@ -39,7 +39,7 @@ this skill: include **ask my azan**.
    deployment operator. Never share your Amazon password or session cookies.
 6. Under **Build → Interaction Model → JSON Editor**, replace the model with
    [`interaction-model-en-US.json`](interaction-model-en-US.json). **Save Model**
-   and **Build Model**. Wait for a successful build. Invocation name: `my azan`.
+   and **Build Model**. Wait for a successful build. Invocation name: `prayer times`.
 7. Under **Build → Endpoint**, select **HTTPS**, and set **Default Region** to:
 
    ```text
@@ -50,7 +50,7 @@ this skill: include **ask my azan**.
    authority**. Save the endpoint. Use the same hostname for the certificate;
    do not use the raw IP address.
 8. Under **Test**, set skill testing to **Development**. In the simulator, use
-   locale **English (US)** and enter `ask my azan for the next prayer`.
+   locale **English (US)** and enter `open prayer times`.
 9. Ask the physical Echo the same question. Confirm the spoken prayer, time,
    countdown, and remaining times. A successful synthetic backend test alone
    does not verify Amazon's routing or physical-device playback.
@@ -59,6 +59,10 @@ Development testing on your own account is sufficient; leave certification and
 public distribution alone. Locale/account mismatches are common reasons for
 “skill not found.” This skill does not request personal information or device
 permissions.
+
+If the skill is already set up, go to **Build → Invocation** and set **Skill
+Invocation Name** to `prayer times`, then save and build the model. Keep the
+existing skill ID and HTTPS endpoint. The console can still list it as **My Azan**.
 
 ## 2. Backend deployment
 
