@@ -27,6 +27,17 @@ day's Isha occurring after midnight. A Simple Card accompanies the spoken reply.
 The phrase “Alexa, what is the next prayer?” alone is not guaranteed to invoke
 this skill: include **ask Prayer Times**.
 
+### Show the timetable on Echo Show
+
+In the existing skill, open **Build → Interfaces**, enable **Alexa Presentation
+Language**, click **Save Interfaces**, then **Build Model**. Keep testing set to
+**Development**. No new skill, endpoint, or model JSON is needed.
+
+Say **“Alexa, open Prayer Times”** to see the next prayer, the time remaining
+when you asked, and the prayers later today. Say **“Alexa, ask Prayer Times for
+today's prayer times”** to see all five. Alexa still speaks the answer, and
+speakers without screens work as before. The display is not a home-screen widget.
+
 ## 1. Create the development skill
 
 1. Sign in at https://developer.amazon.com/alexa/console/ask with the Echo's Amazon
@@ -120,6 +131,8 @@ Monkey. The scheduler prefetches yesterday, today, and tomorrow; missing or
 invalid required data produces a spoken temporary-unavailability message rather
 than stale or invented times. Config changes require restarting both services.
 
+The display template must be installed at
+`/opt/azan-alexa/alexa/prayer-times-apl.json` alongside the backend.
 The two services are independent. Deploying the skill does not require stopping
 or restarting the live scheduler. The shared `get_schedule(..., cached_only=True)`
 addition is backwards-compatible; restart the scheduler on a future code update
@@ -142,7 +155,8 @@ python3 -m venv .venv
 ```
 
 Tests exercise synthetic signed HTTP requests, invalid signatures/timestamps/IDs,
-read-only cache failures, remaining/full-day replies, after-Isha rollover and DST.
+read-only cache failures, remaining/full-day replies, after-Isha rollover, DST,
+and screen versus speaker response payloads.
 The synthetic signing certificate replaces certificate fetch/trust **only in
 tests**; production retains all SDK verification. Test speech/signature fixtures
 contain no real Amazon credentials. An actual Amazon/Echo test is still required.

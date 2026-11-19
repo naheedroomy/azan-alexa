@@ -14,6 +14,9 @@ from zoneinfo import ZoneInfo
 from ask_sdk_core.handler_input import HandlerInput
 from ask_sdk_core.skill_builder import SkillBuilder
 from ask_sdk_core.utils.predicate import is_intent_name, is_request_type
+from ask_sdk_model.interfaces.alexa.presentation.apl.render_document_directive import (
+    RenderDocumentDirective,
+)
 from ask_sdk_model.ui.simple_card import SimpleCard
 from ask_sdk_runtime.exceptions import AskSdkException
 from ask_sdk_webservice_support.webservice_handler import WebserviceSkillHandler
@@ -56,7 +59,7 @@ def countdown_text(seconds):
 
 
 def prayer_reply(config, database, now, all_today=False):
-    """Return speech and card text from validated cache only; never fetch or play."""
+    """Build speech, card, and screen data from the same validated cache."""
     if now.tzinfo is None:
         raise ValueError("The query clock must include a timezone")
     now = now.astimezone(ZoneInfo(config["timezone"]))
@@ -81,24 +84,28 @@ def prayer_reply(config, database, now, all_today=False):
     upcoming.sort(key=lambda item: item[1].astimezone(UTC))
     name, stamp = upcoming[0]
     seconds = (stamp.astimezone(UTC) - now.astimezone(UTC)).total_seconds()
-    introduction = (f"The next prayer is {name} at {clock_text(stamp, today)}, "
-                    f"{countdown_text(seconds)}.")
-    if all_today:
-        listing = ", ".join(f"{name} at {clock_text(stamp, today)}"
-                            for name, stamp in schedule.items())
-        detail = "Today's prayer times are " + listing + "."
+    next_time = clock_text(stamp, today)
+    countdown = countdown_text(seconds)
+    introduction = f"The next prayer is {name} at {next_time}, {countdown}."
+    later = [(prayer, time) for prayer, time in upcoming[1:] if time.date() == today]
+    entries = [(prayer, clock_text(time, today))
+               for prayer, time in (schedule.items() if all_today else later)]
+    if entries:
+        lead = "Today's prayer times are " if all_today else "Later today, "
+        detail = lead + ", ".join(f"{prayer} at {time}" for prayer, time in entries) + "."
+    elif stamp.date() > today:
+        detail = "There are no more prayers today."
     else:
-        later = [(name, stamp) for name, stamp in upcoming[1:]
-                 if stamp.date() == today]
-        if later:
-            detail = "Later today, " + ", ".join(
-                f"{name} at {clock_text(stamp, today)}" for name, stamp in later) + "."
-        elif stamp.date() > today:
-            detail = "There are no more prayers today."
-        else:
-            detail = "That is the last prayer today."
+        detail = "That is the last prayer today."
+    screen = {
+        "title": f"Next: {name}",
+        "subtitle": f"{next_time} · {countdown}",
+        "rows": ([{"primaryText": f"{prayer} · {time}"} for prayer, time in entries]
+                 or [{"primaryText": detail}]),
+    }
     speech = introduction + " " + detail
-    return speech, f"{today.isoformat()} | {config['timezone']}\n{introduction}\n{detail}"
+    card = f"{today.isoformat()} | {config['timezone']}\n{introduction}\n{detail}"
+    return speech, card, screen
 
 
 def create_app():
@@ -110,6 +117,12 @@ def create_app():
     skill_id = os.environ.get("ALEXA_SKILL_ID", "").strip()
     if skill_id and not re.fullmatch(r"amzn1\.ask\.skill\.[0-9a-f-]{36}", skill_id):
         raise ValueError("ALEXA_SKILL_ID must be the ID from the Alexa developer console")
+    apl_path = Path(__file__).with_name("alexa") / "prayer-times-apl.json"
+    try:
+        apl_document = json.loads(apl_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        LOG.warning("Prayer timetable display template unavailable; using voice only")
+        apl_document = None
     builder = SkillBuilder()
 
     def wants_prayer(handler_input: HandlerInput):
@@ -120,17 +133,35 @@ def create_app():
     @builder.request_handler(can_handle_func=wants_prayer)
     def answer_prayer(handler_input: HandlerInput):
         try:
-            speech, card = prayer_reply(config, database, datetime.now(UTC),
-                                       is_intent_name("TodaysPrayerTimesIntent")(handler_input))
+            speech, card, screen = prayer_reply(
+                config, database, datetime.now(UTC),
+                is_intent_name("TodaysPrayerTimesIntent")(handler_input),
+            )
         except (RuntimeError, ValueError, KeyError, TypeError, OSError, sqlite3.Error):
             LOG.warning("Prayer cache unavailable for Alexa query")
             return handler_input.response_builder.speak(UNAVAILABLE).set_should_end_session(True).response
-        return (handler_input.response_builder.speak(prayer_ssml(speech))
-                .set_card(SimpleCard("Prayer times", card))
-                .set_should_end_session(True).response)
+        response = (handler_input.response_builder.speak(prayer_ssml(speech))
+                    .set_card(SimpleCard("Prayer times", card)))
+        envelope = handler_input.request_envelope
+        system = getattr(envelope.context, "system", None)
+        interfaces = getattr(getattr(system, "device", None), "supported_interfaces", None)
+        if apl_document and envelope.request and interfaces and interfaces.alexa_presentation_apl is not None:
+            response.add_directive(RenderDocumentDirective(
+                token=envelope.request.request_id,
+                document=apl_document,
+                datasources={"timetable": screen},
+            ))
+            # Omit shouldEndSession so the display can stay up without a voice prompt.
+        else:
+            response.set_should_end_session(True)
+        return response.response
 
-    @builder.request_handler(can_handle_func=is_request_type("SessionEndedRequest"))
-    def session_ended(handler_input: HandlerInput):
+    def is_notification(handler_input: HandlerInput):
+        return (is_request_type("SessionEndedRequest")(handler_input)
+                or is_request_type("Alexa.Presentation.APL.RuntimeError")(handler_input))
+
+    @builder.request_handler(can_handle_func=is_notification)
+    def notification(handler_input: HandlerInput):
         return handler_input.response_builder.response
 
     def wants_stop(handler_input: HandlerInput):

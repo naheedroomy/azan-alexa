@@ -110,7 +110,7 @@ class PrayerReplyTests(QueryFixture):
             with self.subTest(day=day):
                 self.cache(day, api_response(day, offset))
                 now = datetime.combine(day, datetime.min.time(), ZONE).replace(hour=1, minute=30)
-                speech, _ = alexa_skill.prayer_reply(self.config, self.database, now)
+                speech = alexa_skill.prayer_reply(self.config, self.database, now)[0]
                 self.assertIn("Fajr at 5:43 AM, in " + expected, speech)
 
     def test_missing_today_cache_never_falls_back_to_yesterday(self):
@@ -178,17 +178,18 @@ class WebhookTests(QueryFixture):
         self.app.testing = True
         self.client = self.app.test_client()
 
-    def envelope(self, intent="NextPrayerIntent", request_type="IntentRequest"):
+    def envelope(self, intent="NextPrayerIntent", request_type="IntentRequest", *, screen=False):
         request: dict[str, object] = {"type": request_type, "requestId": "test-request", "locale": "en-US",
                    "timestamp": datetime.now(azan.UTC).isoformat()}
         if request_type == "IntentRequest":
             request["intent"] = {"name": intent, "slots": {}}
+        interfaces = {"Alexa.Presentation.APL": {"runtime": {"maxVersion": "2024.3"}}} if screen else {}
         return {"version": "1.0", "request": request,
                 "context": {"System": {"application": {"applicationId": SKILL_ID},
                                        "user": {"userId": "test-user"},
-                                       "device": {"deviceId": "test-device", "supportedInterfaces": {}}}}}
+                                       "device": {"deviceId": "test-device", "supportedInterfaces": interfaces}}}}
 
-    def signed_post(self, envelope=None, *, cert_url=CERT_URL, tamper=False):
+    def signed_post(self, envelope=None, *, cert_url=CERT_URL, tamper=False, now=None):
         body = json.dumps(self.envelope() if envelope is None else envelope)
         signature = self.key.sign(body.encode(), padding.PKCS1v15(), hashes.SHA256())
         if tamper:
@@ -199,7 +200,7 @@ class WebhookTests(QueryFixture):
         with patch.object(RequestVerifier, "_load_cert_chain", return_value=self.cert), \
              patch.object(RequestVerifier, "_validate_cert_chain"), \
              patch("alexa_skill.datetime") as clock:
-            clock.now.return_value = datetime(2026, 11, 18, 13, 0, tzinfo=ZONE)
+            clock.now.return_value = now or datetime(2026, 11, 18, 13, 0, tzinfo=ZONE)
             return self.client.post("/alexa", data=body, headers=headers, content_type="application/json")
 
     def test_signed_request_returns_speech_card_and_ends_session(self):
@@ -216,7 +217,48 @@ class WebhookTests(QueryFixture):
         self.assertIn("Isha at 6:02 PM", result["card"]["content"])
         self.assertNotIn("<phoneme", result["card"]["content"])
         self.assertTrue(result["shouldEndSession"])
+        self.assertNotIn("directives", result)
         self.assertEqual(self.db.execute("SELECT count(*) FROM events").fetchone()[0], 0)
+
+    def screen_reply(self, envelope, *, now=None):
+        response = self.signed_post(envelope, now=now)
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()["response"]
+        self.assertIn("outputSpeech", result)
+        self.assertNotIn("shouldEndSession", result)  # Keep the screen visible without reprompting.
+        self.assertNotIn("reprompt", result)
+        directive, = result["directives"]
+        self.assertEqual(directive["type"], "Alexa.Presentation.APL.RenderDocument")
+        self.assertEqual(directive["document"]["type"], "APL")
+        return directive["datasources"]["timetable"]
+
+    def test_echo_show_next_prayer_and_later_times(self):
+        screen = self.screen_reply(self.envelope(request_type="LaunchRequest", screen=True))
+        self.assertEqual(screen["title"], "Next: Asr")
+        self.assertEqual(screen["subtitle"], "2:23 PM · in 1 hour and 23 minutes")
+        self.assertEqual([row["primaryText"] for row in screen["rows"]],
+                         ["Maghrib · 4:37 PM", "Isha · 6:02 PM"])
+
+    def test_echo_show_full_timetable(self):
+        screen = self.screen_reply(self.envelope("TodaysPrayerTimesIntent", screen=True))
+        self.assertEqual([row["primaryText"] for row in screen["rows"]],
+                         ["Fajr · 5:43 AM", "Dhuhr · 12:10 PM", "Asr · 2:23 PM",
+                          "Maghrib · 4:37 PM", "Isha · 6:02 PM"])
+
+    def test_echo_show_after_isha(self):
+        screen = self.screen_reply(self.envelope(screen=True), now=datetime(2026, 11, 18, 19, tzinfo=ZONE))
+        self.assertEqual(screen["title"], "Next: Fajr")
+        self.assertEqual(screen["subtitle"], "5:43 AM tomorrow · in 10 hours and 43 minutes")
+        self.assertEqual(screen["rows"], [{"primaryText": "There are no more prayers today."}])
+
+    def test_missing_device_metadata_keeps_voice_reply(self):
+        envelope = self.envelope()
+        del envelope["context"]["System"]["device"]
+        response = self.signed_post(envelope)
+        self.assertEqual(response.status_code, 200)
+        result = response.get_json()["response"]
+        self.assertIn("outputSpeech", result)
+        self.assertNotIn("directives", result)
 
     def test_launch_returns_next_prayer_without_extra_prompt(self):
         response = self.signed_post(self.envelope(request_type="LaunchRequest"))
@@ -294,10 +336,11 @@ class WebhookTests(QueryFixture):
 
     def test_unavailable_cache_is_spoken_truthfully(self):
         self.db.execute("DELETE FROM cache")
-        response = self.signed_post()
+        response = self.signed_post(self.envelope(screen=True))
         self.assertEqual(response.status_code, 200)
         self.assertIn(alexa_skill.UNAVAILABLE, response.get_json()["response"]["outputSpeech"]["ssml"])
         self.assertNotIn("card", response.get_json()["response"])
+        self.assertNotIn("directives", response.get_json()["response"])
 
     def test_help_fallback_stop_cancel_and_session_end(self):
         for intent in ("AMAZON.HelpIntent", "AMAZON.FallbackIntent", "UnexpectedIntent"):

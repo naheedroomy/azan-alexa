@@ -1,0 +1,19 @@
+{
+  "type": "APL",
+  "version": "1.4",
+  "import": [{ "name": "alexa-layouts", "version": "1.2.0" }],
+  "mainTemplate": {
+    "parameters": ["payload"],
+    "items": [
+      {
+        "type": "AlexaTextList",
+        "theme": "dark",
+        "backgroundColor": "#122724",
+        "headerTitle": "${payload.timetable.title}",
+        "headerSubtitle": "${payload.timetable.subtitle}",
+        "hideOrdinal": true,
+        "listItems": "${payload.timetable.rows}"
+      }
+    ]
+  }
+}
