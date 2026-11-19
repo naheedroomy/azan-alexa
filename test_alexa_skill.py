@@ -206,21 +206,31 @@ class WebhookTests(QueryFixture):
         response = self.signed_post()
         self.assertEqual(response.status_code, 200)
         result = response.get_json()["response"]
-        self.assertIn("Asr at 2:23 PM", result["outputSpeech"]["ssml"])
+        self.assertEqual(result["outputSpeech"]["type"], "SSML")
+        speech = result["outputSpeech"]["ssml"]
+        self.assertIn('<phoneme alphabet="ipa" ph="ˈɑ.sɚ">Asr</phoneme> at 2:23 PM', speech)
+        self.assertIn('<phoneme alphabet="ipa" ph="ˈi.ʃɑ">Isha</phoneme> at 6:02 PM', speech)
         self.assertEqual(result["card"]["type"], "Simple")
         self.assertIn("Europe/Berlin", result["card"]["content"])
+        self.assertIn("Asr at 2:23 PM", result["card"]["content"])
+        self.assertIn("Isha at 6:02 PM", result["card"]["content"])
+        self.assertNotIn("<phoneme", result["card"]["content"])
         self.assertTrue(result["shouldEndSession"])
         self.assertEqual(self.db.execute("SELECT count(*) FROM events").fetchone()[0], 0)
 
     def test_launch_returns_next_prayer_without_extra_prompt(self):
         response = self.signed_post(self.envelope(request_type="LaunchRequest"))
         self.assertEqual(response.status_code, 200)
-        self.assertIn("next prayer is Asr", response.get_json()["response"]["outputSpeech"]["ssml"])
+        speech = response.get_json()["response"]["outputSpeech"]["ssml"]
+        self.assertIn('next prayer is <phoneme alphabet="ipa" ph="ˈɑ.sɚ">Asr</phoneme>', speech)
 
     def test_full_day_intent_lists_all_five(self):
         response = self.signed_post(self.envelope("TodaysPrayerTimesIntent"))
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Today's prayer times are Fajr", response.get_json()["response"]["outputSpeech"]["ssml"])
+        speech = response.get_json()["response"]["outputSpeech"]["ssml"]
+        self.assertIn("Today's prayer times are Fajr", speech)
+        self.assertEqual(speech.count('ph="ˈɑ.sɚ">Asr</phoneme>'), 2)
+        self.assertIn('ph="ˈi.ʃɑ">Isha</phoneme>', speech)
 
     def test_unsigned_request_is_rejected(self):
         response = self.client.post("/alexa", json=self.envelope())

@@ -7,6 +7,7 @@ import re
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timedelta
+from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -24,6 +25,16 @@ LOG = logging.getLogger("azan.alexa")
 HELP = ("Ask me for the next prayer, how long until the next prayer, "
         "or today's prayer times.")
 UNAVAILABLE = "I couldn't load the prayer times. Please try again in a minute."
+PRAYER_PHONEMES = {"Asr": "ˈɑ.sɚ", "Isha": "ˈi.ʃɑ"}
+
+
+def prayer_ssml(speech: str) -> str:
+    """Give Alexa pronunciation hints without changing card text."""
+    return re.sub(
+        r"\b(Asr|Isha)\b",
+        lambda match: f'<phoneme alphabet="ipa" ph="{PRAYER_PHONEMES[match[0]]}">{match[0]}</phoneme>',
+        escape(speech, quote=False),
+    )
 
 
 def clock_text(stamp, today):
@@ -114,7 +125,7 @@ def create_app():
         except (RuntimeError, ValueError, KeyError, TypeError, OSError, sqlite3.Error):
             LOG.warning("Prayer cache unavailable for Alexa query")
             return handler_input.response_builder.speak(UNAVAILABLE).set_should_end_session(True).response
-        return (handler_input.response_builder.speak(speech)
+        return (handler_input.response_builder.speak(prayer_ssml(speech))
                 .set_card(SimpleCard("Prayer times", card))
                 .set_should_end_session(True).response)
 
